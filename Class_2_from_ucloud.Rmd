@@ -1,0 +1,126 @@
+---
+title: "Decision_Making_1"
+output: html_document
+date: '2022-09-12'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#Fill array with NAs because in this case 0 actually means something
+#Forward simulation - running an experiment as if we knew the process
+
+# seed RNG
+set.seed(1982)
+
+#---- model 1- fixed skill level model
+
+Gfixed <- array(NA,c(100))
+ntrials <- 100
+theta <- .7
+#For loop
+for (t in 1:ntrials) {
+  Gfixed[t] <- rbinom(1,1,theta)
+  
+}
+
+#--- Model 2: learning model
+
+#Simulation - running an experiment as if we know the process and the parameter
+Glearn <- array(NA, c(100))
+theta <- array(NA,c(100))
+
+#Psychologically interpretable variables
+theta1 <- .5
+alpha <- .05
+theta[1] <- theta1
+
+for (t in 2:ntrials) {
+  theta[t] <- theta[t-1]^(1/(1+alpha))
+  Glearn[t] <- rbinom(1,1,theta[t])
+  
+}
+
+install.packages("R2jags")
+library(R2jags)
+
+#######################
+data <- list("Gfixed", "ntrials")
+params <- c("theta")
+
+samples <- jags(data, inits=NULL, params, 
+                model.file = "chick_live.txt",
+                n.chains = 3, n.iter=5000, n.burnin=1000, n.thin=1)
+
+samples
+
+#### new model
+data1 <- list("Glearn", "ntrials")
+params1 <- c("theta", "theta1", "alpha")
+
+samples_2 <- jags(data1, inits=NULL, params1, 
+                model.file = "new_chick_model.txt",
+                n.chains = 3, n.iter=5000, n.burnin=1000, n.thin=1)
+
+samples_2
+
+#new stuff
+Gfixed <- array(NA,c(ntrials))
+true_theta <- array(NA,c(20))
+inferred_theta <- array(NA,c(20))
+
+for (s in 1:20) {
+  ntrials <- 100
+  
+  theta <- runif(1,0,1)
+#For loop
+  for (t in 1:ntrials) {
+    Gfixed[t] <- rbinom(1,1,theta)
+  
+}
+  true_theta[s] <- theta
+  
+  #apply the model to data
+  data <- list("Gfixed", "ntrials")
+  params <- c("theta")
+
+samples_3 <- jags(data, inits=NULL, params,
+                model.file = "chick_live.txt",
+                n.chains = 3, n.iter=5000, n.burnin=1000, n.thin=1)
+
+x <- samples_3$BUGSoutput$sims.list$theta
+
+inferred_theta[s] <- mean(x)
+  
+  
+}
+
+plot(true_theta,inferred_theta)
+
+##
+
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
